@@ -255,7 +255,7 @@ export default function LandingPage() {
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className="flex flex-col items-center text-center p-6 border-4 border-transparent hover:border-brand-yellow-acid transition-colors duration-300"
+              className="flex flex-col items-center text-center p-6 border-4 border-[rgba(26,26,26,1)] hover:border-brand-yellow-acid transition-colors duration-300"
             >
               <div className="font-display font-black text-8xl text-brand-yellow-acid leading-none mb-4 drop-shadow-[4px_4px_0_rgba(26,26,26,1)]">
                 01
@@ -273,7 +273,7 @@ export default function LandingPage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
-              className="flex flex-col items-center text-center p-6 border-4 border-transparent hover:border-brand-yellow-acid transition-colors duration-300"
+              className="flex flex-col items-center text-center p-6 border-4 border-[rgba(26,26,26,1)] hover:border-brand-yellow-acid transition-colors duration-300"
             >
               <div className="font-display font-black text-8xl text-brand-yellow-acid leading-none mb-4 drop-shadow-[4px_4px_0_rgba(26,26,26,1)]">
                 02
@@ -291,7 +291,7 @@ export default function LandingPage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.4 }}
-              className="flex flex-col items-center text-center p-6 border-4 border-transparent hover:border-brand-yellow-acid transition-colors duration-300"
+              className="flex flex-col items-center text-center p-6 border-4 border-[rgba(26,26,26,1)] hover:border-brand-yellow-acid transition-colors duration-300"
             >
               <div className="font-display font-black text-8xl text-brand-yellow-acid leading-none mb-4 drop-shadow-[4px_4px_0_rgba(26,26,26,1)]">
                 03
@@ -309,7 +309,7 @@ export default function LandingPage() {
 
       <div className="bg-brand-yellow-acid grain border-b-4 border-brand-text-dark py-24 text-center">
         <div className="relative z-10 max-w-4xl mx-auto px-4">
-          <h2 className="font-display font-black text-6xl md:text-8xl text-brand-purple-vivid uppercase mb-8 leading-tight drop-shadow-[4px_4px_0_rgba(26,26,26,0.15)]">
+          <h2 className="font-display font-black text-6xl md:text-8xl text-brand-purple-vivid uppercase mb-8 leading-tight drop-shadow-[4px_4px_0_rgba(26,26,26,1)]">
             Ready To
             <br />
             Meet?

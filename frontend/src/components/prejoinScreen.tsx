@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 const PrejoinScreen = () => {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [meetingId, setMeetingId] = useState<string>("");
   const [audioLevel, setAudioLevel] = useState<number>(0);
   const [isCamOn, setIsCamOn] = useState(true);
   const [isMicOn, setIsMicOn] = useState(true);
@@ -95,6 +96,10 @@ const PrejoinScreen = () => {
     }
   };
 
+  const handleJoinRoom = () => {
+    navigate(`/${meetingId}`);
+  };
+
   return (
     <div className="bg-[#f7f6f8] text-slate-900 min-h-screen flex flex-col font-['Space_Grotesk']">
       {/* Header */}
@@ -114,12 +119,12 @@ const PrejoinScreen = () => {
 
       <main className="flex-1 grid grid-cols-1 md:grid-cols-2">
         {/* Left Column: Media Preview */}
-        <div className="grain bg-brand-blue-cobalt p-8 md:p-12 lg:p-16 flex flex-col justify-center min-h-[60vh] relative overflow-hidden">
+        <div className="grain bg-brand-blue-cobalt p-6 md:p-8 lg:p-10 flex flex-col justify-center min-h-[60vh] relative overflow-hidden">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.4, ease: "easeOut" }}
-            className="relative z-10 w-full max-w-2xl mx-auto flex flex-col gap-6"
+            className="relative z-10 w-full max-w-4xl mx-auto flex flex-col gap-6"
           >
             {/* Video Container */}
             <div className="relative w-full aspect-video bg-black border-4 border-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center overflow-hidden">
@@ -241,7 +246,7 @@ const PrejoinScreen = () => {
               </label>
               <input
                 id="name-input"
-                className="w-full bg-white border-3 border-slate-900 p-3 font-['Inter'] text-base font-bold text-slate-900 focus:outline-none focus:ring-0 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] uppercase placeholder-slate-400"
+                className="w-full bg-white border-4 border-slate-900 p-4 font-['Inter'] text-lg font-bold text-slate-900 focus:outline-none focus:ring-0 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] uppercase placeholder-slate-400"
                 placeholder="GUEST_USER_01"
                 type="text"
                 autoComplete="off"
@@ -255,10 +260,11 @@ const PrejoinScreen = () => {
               </label>
               <input
                 id="meeting-id"
-                className="w-full bg-white border-3 border-slate-900 p-3 font-['Inter'] text-base font-bold text-slate-900 focus:outline-none focus:ring-0 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] uppercase placeholder-slate-400"
+                className="w-full bg-white border-4 border-slate-900 p-4 font-['Inter'] text-lg font-bold text-slate-900 focus:outline-none focus:ring-0 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] uppercase placeholder-slate-400"
                 placeholder="ENTER MEETING ID"
                 type="text"
                 autoComplete="off"
+                onChange={(e) => setMeetingId(e.target.value)}
               />
             </div>
           </motion.div>
@@ -269,7 +275,10 @@ const PrejoinScreen = () => {
             transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
             className="relative z-10 mt-6"
           >
-            <button className="w-full bg-brand-yellow-acid border-3 border-slate-900 p-4 flex justify-between items-center group shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-1 hover:translate-x-1 outline-none focus:ring-4 focus:ring-purple-500 transition-all cursor-pointer">
+            <button
+              className="w-full bg-brand-yellow-acid border-4 border-slate-900 p-5 flex justify-between items-center group shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-1 hover:translate-x-1 outline-none focus:ring-4 focus:ring-purple-500 transition-all cursor-pointer"
+              onClick={handleJoinRoom}
+            >
               <span className="font-['Barlow_Condensed'] text-4xl md:text-5xl font-black text-brand-purple-vivid uppercase tracking-wide">
                 Enter Meeting
               </span>
