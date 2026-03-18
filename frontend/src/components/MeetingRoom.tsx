@@ -7,6 +7,8 @@ import {
   Video,
   VideoOff,
   PhoneOff,
+  Monitor,
+  MonitorOff,
 } from "lucide-react";
 import { useWebRTC } from "../hooks/useRTC";
 
@@ -42,6 +44,8 @@ export default function Room() {
     remoteStreams,
     toggleMic,
     toggleCamera,
+    toggleScreenShare,
+    isScreenSharing,
     endCall,
     joinRoom,
     isMicOn,
@@ -119,6 +123,18 @@ export default function Room() {
         >
           {isCameraOn ? <Video size={20} /> : <VideoOff size={20} />}
           Camera
+        </button>
+        <button
+          id="btn-screen-share"
+          onClick={toggleScreenShare}
+          className={`flex items-center gap-2 px-6 py-2 rounded-none border-[3px] font-display font-bold text-lg uppercase cursor-pointer transition-all grain ${
+            isScreenSharing
+              ? "bg-white text-brand-text-dark border-brand-text-dark hover:bg-gray-100"
+              : "bg-red-600 text-white border-brand-text-dark"
+          }`}
+        >
+          {isScreenSharing ? <Monitor size={20} /> : <MonitorOff size={20} />}
+          Screen Share
         </button>
         <button
           id="btn-hangup"

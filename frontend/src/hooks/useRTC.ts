@@ -5,18 +5,24 @@ export function useWebRTC(roomId?: string, username?: string) {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [isMicOn, setIsMicOn] = useState(true);
   const [isCameraOn, setIsCameraOn] = useState(true);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const isScreenSharingRef = useRef(false);
   const [userId, setUserId] = useState<string>("");
   const videoRef = useRef<HTMLVideoElement>(null);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const peers = useRef<Map<string, RTCPeerConnection>>(new Map());
   const localStreamRef = useRef<MediaStream | null>(null);
+  const screenStreamRef = useRef<MediaStream | null>(null);
 
   const joinRoom = () => {
+    if (!localStreamRef.current) {
+      console.warn("Local stream not ready yet");
+      return;
+    }
     socket.emit("join-room", {roomId, username});
   } 
 
   const createPeerConnection = async (userId: string) => {
-
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
@@ -40,36 +46,20 @@ export function useWebRTC(roomId?: string, username?: string) {
       });
     };  
 
-    localStreamRef.current?.getTracks().forEach(track => pc.addTrack(track, localStreamRef.current!))
-
-    // const stream = await navigator.mediaDevices.getUserMedia({
-    //   video: true,
-    //   audio: true,
-    // });
-
-    // setLocalStream(stream);
-
-    // if (videoRef.current) {
-    //   videoRef.current.srcObject = stream;
-    // }
-
-    // stream.getTracks().forEach((track) => {
-    //   pc.addTrack(track, stream);
-    // });
+    if (localStreamRef.current) {
+      localStreamRef.current.getAudioTracks().forEach(track => pc.addTrack(track, localStreamRef.current!));
+      
+      const videoTrack = isScreenSharingRef.current && screenStreamRef.current 
+        ? screenStreamRef.current.getVideoTracks()[0] 
+        : localStreamRef.current.getVideoTracks()[0];
+      
+      if (videoTrack) {
+        pc.addTrack(videoTrack, isScreenSharingRef.current ? screenStreamRef.current! : localStreamRef.current!);
+      }
+    }
 
     return pc;
   };
-
-//   const createOffer = async () => {
-//     if (!peers.current || !roomId) return;
-
-//     socket.emit("join-room", roomId);
-
-//     const offer = await peers.current   .createOffer();
-//     await peers.current.setLocalDescription(offer);
-
-//     socket.emit("offer", { roomId, sdp: offer });
-//   };
 
   const toggleMic = () => {
     if (!localStream) return;
@@ -89,13 +79,74 @@ export function useWebRTC(roomId?: string, username?: string) {
     setIsCameraOn(video.enabled);
   };
 
+  const toggleScreenShare = async () => {
+    if (!isScreenSharingRef.current) {
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+        screenStreamRef.current = stream;
+        const screenTrack = stream.getVideoTracks()[0];
+
+        // Replace track for all peers
+        peers.current.forEach((pc) => {
+          const senders = pc.getSenders();
+          const videoSender = senders.find((s) => s.track?.kind === "video");
+          if (videoSender) {
+            videoSender.replaceTrack(screenTrack);
+          }
+        });
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+
+        screenTrack.onended = () => {
+          stopScreenShare();
+        };
+
+        isScreenSharingRef.current = true;
+        setIsScreenSharing(true);
+      } catch (err) {
+        console.error("Error starting screen share:", err);
+      }
+    } else {
+      stopScreenShare();
+    }
+  };
+
+  const stopScreenShare = () => {
+    if (screenStreamRef.current) {
+      screenStreamRef.current.getTracks().forEach((track) => track.stop());
+      screenStreamRef.current = null;
+    }
+
+    const cameraTrack = localStreamRef.current?.getVideoTracks()[0];
+    if (cameraTrack) {
+      peers.current.forEach((pc) => {
+        const senders = pc.getSenders();
+        const videoSender = senders.find((s) => s.track?.kind === "video");
+        if (videoSender) {
+          videoSender.replaceTrack(cameraTrack);
+        }
+      });
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = localStreamRef.current;
+      }
+    }
+    isScreenSharingRef.current = false;
+    setIsScreenSharing(false);
+  };
+
   const endCall = async () => {
     peers.current.forEach(pc => pc.close());   
     peers.current.clear();
     localStream?.getTracks().forEach(t => t.stop());
+    screenStreamRef.current?.getTracks().forEach(t => t.stop());
 
     localStreamRef.current = null;
+    screenStreamRef.current = null;
     setLocalStream(null);
+    setIsScreenSharing(false);
     setRemoteStreams(new Map());
     if(videoRef.current) videoRef.current.srcObject = null;
     
@@ -145,12 +196,12 @@ export function useWebRTC(roomId?: string, username?: string) {
     };
 
     const handleUserJoined = async ({socketId, username}: {socketId: string, username: string}) => {
-        // const pc = await createPeerConnection(socketId);
-        // const offer = await pc.createOffer();
-        // await pc.setLocalDescription(offer);
-        // socket.emit("offer", { target: socketId, sdp: offer });
+        const pc = await createPeerConnection(socketId);
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socket.emit("offer", { target: socketId, sdp: offer });
 
-        await createPeerConnection(socketId);
+        // await createPeerConnection(socketId);
     }
 
     const handleUserLeft = ({socketId}: { socketId: string}) => {
@@ -198,6 +249,8 @@ export function useWebRTC(roomId?: string, username?: string) {
     remoteStreams,
     toggleMic,
     toggleCamera,
+    toggleScreenShare,
+    isScreenSharing,
     endCall,
     joinRoom,
     isMicOn,
