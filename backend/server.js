@@ -65,6 +65,17 @@ io.on("connection", (socket) => {
         io.to(target).emit("ice-candidate", {candidate, target: socket.id});
     });
 
+    socket.on("peer-left", ({roomId}) => {
+        socket.to(roomId).emit("peer-left", {socketId: socket.id});
+        if(roomMap.has(roomId)) {
+            roomMap.get(roomId).delete(socket.id);
+
+            if(roomMap.get(roomId).size === 0){
+                roomMap.delete(roomId);
+            }
+        }
+    });
+
     socket.on("disconnect", () => {
         for(const [roomId, members] of roomMap) {
             if(members.has(socket.id)) {

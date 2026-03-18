@@ -10,11 +10,13 @@ export function useWebRTC(roomId?: string, username?: string) {
   const [userId, setUserId] = useState<string>("");
   const videoRef = useRef<HTMLVideoElement>(null);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
+  const [userNames, setUserNames] = useState<Map<string, string>>(new Map());
   const peers = useRef<Map<string, RTCPeerConnection>>(new Map());
   const localStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
 
-  const joinRoom = () => {
+  const joinRoom = async () => {
+    await startLocalStream();
     if (!localStreamRef.current) {
       console.warn("Local stream not ready yet");
       return;
@@ -158,14 +160,19 @@ export function useWebRTC(roomId?: string, username?: string) {
     return () => { socket.off("connect"); };
   }, []);
 
-  useEffect(() => {
-    navigator.mediaDevices.getUserMedia({ audio: true, video: true })
-    .then(stream => {
-        localStreamRef.current = stream;
-        setLocalStream(stream);
-        if(videoRef.current) videoRef.current.srcObject = stream;
-    })
-  }, []);
+  const startLocalStream = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+      localStreamRef.current = stream;
+      setLocalStream(stream);
+      if(videoRef.current) videoRef.current.srcObject = stream;
+
+    } catch (error) {
+        console.error("Camera access denied", error);
+    }
+    
+  }
+    
 
   useEffect(() => {
 
@@ -196,6 +203,12 @@ export function useWebRTC(roomId?: string, username?: string) {
     };
 
     const handleUserJoined = async ({socketId, username}: {socketId: string, username: string}) => {
+
+        setUserNames(prev => {
+          const map = new Map(prev);
+          map.set(socketId, username);
+          return map;
+        })
         const pc = await createPeerConnection(socketId);
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
@@ -219,6 +232,11 @@ export function useWebRTC(roomId?: string, username?: string) {
 
     // When we join a room, the server tells us who is already there
     const handleExistingUsers = async (users: {socketId: string, username: string}[]) => {
+        setUserNames(prev => {
+          const map = new Map(prev);
+          users.forEach(({socketId, username}) => map.set(socketId, username));
+          return map;
+        })
         for (const { socketId } of users) {
             const pc = await createPeerConnection(socketId);
             const offer = await pc.createOffer();
@@ -247,6 +265,7 @@ export function useWebRTC(roomId?: string, username?: string) {
   return {
     videoRef,
     remoteStreams,
+    userNames,
     toggleMic,
     toggleCamera,
     toggleScreenShare,

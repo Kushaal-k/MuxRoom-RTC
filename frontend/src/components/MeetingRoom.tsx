@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import {
   LogIn,
   Mic,
@@ -39,9 +39,13 @@ function RemoteVideo({ stream, label }: { stream: MediaStream; label: string }) 
 
 export default function Room() {
   const { roomId } = useParams<{ roomId: string }>();
+  const location = useLocation();
+  const username = location.state?.username || "GUEST_USER";  
+
   const {
     videoRef,
     remoteStreams,
+    userNames,
     toggleMic,
     toggleCamera,
     toggleScreenShare,
@@ -50,7 +54,7 @@ export default function Room() {
     joinRoom,
     isMicOn,
     isCameraOn,
-  } = useWebRTC(roomId);
+  } = useWebRTC(roomId, username);
 
   return (
     <div className="flex flex-col h-screen bg-brand-text-dark">
@@ -78,11 +82,11 @@ export default function Room() {
             <span className="text-white/20 font-body text-sm">Waiting for others...</span>
           </div>
         ) : (
-          Array.from(remoteStreams.entries()).map(([peerId, stream], index) => (
+          Array.from(remoteStreams.entries()).map(([peerId, stream]) => (
             <RemoteVideo
               key={peerId}
               stream={stream}
-              label={`Guest ${index + 1}`}
+              label={userNames.get(peerId) || "GUEST_USER"}
             />
           ))
         )}

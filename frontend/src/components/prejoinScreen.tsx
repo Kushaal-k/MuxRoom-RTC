@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 const PrejoinScreen = () => {
+  const { roomId } = useParams<{ roomId: string}>();
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [meetingId, setMeetingId] = useState<string>("");
+  const [meetingId, setMeetingId] = useState<string>(roomId || "");
   const [audioLevel, setAudioLevel] = useState<number>(0);
+  const [username, setUsername] = useState<string>("");
   const [isCamOn, setIsCamOn] = useState(true);
   const [isMicOn, setIsMicOn] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -97,7 +99,10 @@ const PrejoinScreen = () => {
   };
 
   const handleJoinRoom = () => {
-    navigate(`/${meetingId}`);
+    if(!meetingId) return;
+    navigate(`/${meetingId}`, {
+      state: { username: username.trim() || "GUEST_USER" }
+    });
   };
 
   return (
@@ -250,6 +255,8 @@ const PrejoinScreen = () => {
                 placeholder="GUEST_USER_01"
                 type="text"
                 autoComplete="off"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
               />
 
               <label
@@ -264,6 +271,7 @@ const PrejoinScreen = () => {
                 placeholder="ENTER MEETING ID"
                 type="text"
                 autoComplete="off"
+                value={meetingId}
                 onChange={(e) => setMeetingId(e.target.value)}
               />
             </div>
