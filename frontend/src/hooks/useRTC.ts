@@ -67,18 +67,22 @@ export function useWebRTC(roomId?: string, username?: string) {
     if (!localStream) return;
 
     const audio = localStream.getAudioTracks()[0];
-    audio.enabled = !audio.enabled;
-
-    setIsMicOn(audio.enabled);
+    if(audio) {
+        audio.enabled = !audio.enabled;
+        setIsMicOn(audio.enabled);
+    }
+   
   };
 
   const toggleCamera = () => {
     if (!localStream) return;
 
     const video = localStream.getVideoTracks()[0];
-    video.enabled = !video.enabled;
 
-    setIsCameraOn(video.enabled);
+    if(video){
+      video.enabled = !video.enabled;
+      setIsCameraOn(video.enabled);
+    }
   };
 
   const toggleScreenShare = async () => {
@@ -209,12 +213,8 @@ export function useWebRTC(roomId?: string, username?: string) {
           map.set(socketId, username);
           return map;
         })
-        const pc = await createPeerConnection(socketId);
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        socket.emit("offer", { target: socketId, sdp: offer });
 
-        // await createPeerConnection(socketId);
+        await createPeerConnection(socketId);
     }
 
     const handleUserLeft = ({socketId}: { socketId: string}) => {

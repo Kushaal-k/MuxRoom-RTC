@@ -56,6 +56,10 @@ export default function Room() {
     isCameraOn,
   } = useWebRTC(roomId, username);
 
+  useEffect(() => {
+    joinRoom();
+  }, []);
+
   return (
     <div className="flex flex-col h-screen bg-brand-text-dark">
       <div className="flex-1 flex flex-wrap gap-1 p-1 min-h-0 relative z-10">
@@ -96,14 +100,14 @@ export default function Room() {
         <div className="font-display font-bold text-xl px-4 py-2 border-r-[3px] border-brand-text-dark flex items-center">
           ROOM: {roomId}
         </div>
-        <button
+        {/* <button
           id="btn-join"
           onClick={joinRoom}
           className="flex items-center gap-2 px-6 py-2 rounded-none border-[3px] border-brand-text-dark bg-brand-purple-vivid text-white font-display font-bold text-lg uppercase cursor-pointer hover:bg-brand-purple-deep transition-all grain"
         >
           <LogIn size={20} />
           Join
-        </button>
+        </button> */}
         <button
           id="btn-mic"
           onClick={toggleMic}
