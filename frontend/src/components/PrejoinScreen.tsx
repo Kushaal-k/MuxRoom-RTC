@@ -18,6 +18,7 @@ const PrejoinScreen = () => {
 
   useEffect(() => {
     let mounted = true;
+    let streamRef: MediaStream | null = null;
 
     const initConnection = async () => {
       try {
@@ -25,6 +26,8 @@ const PrejoinScreen = () => {
           video: true,
           audio: true,
         });
+
+        streamRef = stream;
 
         if (!mounted) {
           stream.getTracks().forEach((t) => t.stop());
@@ -71,6 +74,7 @@ const PrejoinScreen = () => {
     return () => {
       mounted = false;
       // Cleanup on unmount
+      streamRef?.getTracks().forEach((t) => t.stop());
       if (audioContextRef.current) {
         audioContextRef.current.close().catch(() => {});
       }

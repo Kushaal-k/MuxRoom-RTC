@@ -10,7 +10,6 @@ const io = new Server(server, {
     cors: {
         origin: "*",
         methods: ["GET", "POST"],
-        credentials: true
     }
 });
 
@@ -25,6 +24,10 @@ io.on("connection", (socket) => {
     console.log("User connected: " + socket.id);
 
     socket.on("join-room", ({roomId, username}) => {
+        if(!roomId || !username || roomId.length > 100) {
+            return;
+        }
+
         if(roomMap.has(roomId) && roomMap.get(roomId).size >= 6){
             socket.emit("room-full");
             return;

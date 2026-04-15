@@ -1,19 +1,32 @@
 import { useEffect, useRef, useState } from "react";
 import { socket } from "../config/socket";
+import type { ToastType } from "./useToast";
 
-export function useWebRTC(roomId?: string, username?: string) {
+/**
+ * @param roomId - The ID of the room to join
+ * @param username - The username of the user
+ * @param onToast - Callback function to display toast notifications
+ */
+
+export type OnToast = (message: string, type: ToastType) => void;
+
+export function useWebRTC(roomId?: string, username?: string, onToast?: OnToast) {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [isMicOn, setIsMicOn] = useState(true);
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const isScreenSharingRef = useRef(false);
-  const [userId, setUserId] = useState<string>("");
   const videoRef = useRef<HTMLVideoElement>(null);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [userNames, setUserNames] = useState<Map<string, string>>(new Map());
+  const userNamesRef = useRef<Map<string, string>>(new Map());
   const peers = useRef<Map<string, RTCPeerConnection>>(new Map());
   const localStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
+  // Always keep a fresh ref to onToast so the stale [] closure can call the latest version
+  const onToastRef = useRef<OnToast | undefined>(onToast);
+  useEffect(() => { onToastRef.current = onToast; }, [onToast]);
+  useEffect(() => { userNamesRef.current = userNames; }, [userNames]);
 
   const joinRoom = async () => {
     await startLocalStream();
@@ -21,6 +34,7 @@ export function useWebRTC(roomId?: string, username?: string) {
       console.warn("Local stream not ready yet");
       return;
     }
+    if (!socket.connected) socket.connect();
     socket.emit("join-room", {roomId, username});
   } 
 
@@ -67,18 +81,22 @@ export function useWebRTC(roomId?: string, username?: string) {
     if (!localStream) return;
 
     const audio = localStream.getAudioTracks()[0];
-    audio.enabled = !audio.enabled;
-
-    setIsMicOn(audio.enabled);
+    if(audio) {
+        audio.enabled = !audio.enabled;
+        setIsMicOn(audio.enabled);
+    }
+   
   };
 
   const toggleCamera = () => {
     if (!localStream) return;
 
     const video = localStream.getVideoTracks()[0];
-    video.enabled = !video.enabled;
 
-    setIsCameraOn(video.enabled);
+    if(video){
+      video.enabled = !video.enabled;
+      setIsCameraOn(video.enabled);
+    }
   };
 
   const toggleScreenShare = async () => {
@@ -101,17 +119,24 @@ export function useWebRTC(roomId?: string, username?: string) {
           videoRef.current.srcObject = stream;
         }
 
+        // Auto-stop when the OS-level share picker is dismissed
         screenTrack.onended = () => {
           stopScreenShare();
+          onToastRef.current?.("Screen share ended", "info");
         };
 
         isScreenSharingRef.current = true;
         setIsScreenSharing(true);
+        onToastRef.current?.("Screen sharing started", "info");
       } catch (err) {
-        console.error("Error starting screen share:", err);
+        // Only notify if the user didn't cancel deliberately
+        if ((err as DOMException).name !== "NotAllowedError") {
+          onToastRef.current?.("Screen share failed", "error");
+        }
       }
     } else {
       stopScreenShare();
+      onToastRef.current?.("Screen share stopped", "info");
     }
   };
 
@@ -153,25 +178,20 @@ export function useWebRTC(roomId?: string, username?: string) {
     if(videoRef.current) videoRef.current.srcObject = null;
     
     socket.emit("peer-left", { roomId });
+    socket.disconnect();
+    onToastRef.current?.("You left the room", "leave");
   };
-
-  useEffect(() => {
-    socket.on("connect", () => setUserId(socket.id as string));
-    return () => { socket.off("connect"); };
-  }, []);
 
   const startLocalStream = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
       localStreamRef.current = stream;
       setLocalStream(stream);
       if(videoRef.current) videoRef.current.srcObject = stream;
-
     } catch (error) {
-        console.error("Camera access denied", error);
+      onToastRef.current?.("Camera / mic access denied", "error");
     }
-    
-  }
+  };
     
 
   useEffect(() => {
@@ -203,22 +223,19 @@ export function useWebRTC(roomId?: string, username?: string) {
     };
 
     const handleUserJoined = async ({socketId, username}: {socketId: string, username: string}) => {
-
         setUserNames(prev => {
           const map = new Map(prev);
           map.set(socketId, username);
           return map;
-        })
-        const pc = await createPeerConnection(socketId);
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        socket.emit("offer", { target: socketId, sdp: offer });
+        });
 
-        // await createPeerConnection(socketId);
-    }
+        onToastRef.current?.(`${username} joined`, "join");
+        await createPeerConnection(socketId);
+    };
 
     const handleUserLeft = ({socketId}: { socketId: string}) => {
         const pc = peers.current.get(socketId);
+        const leavingName = userNamesRef.current.get(socketId) ?? "A participant";
 
         pc?.close();
         peers.current.delete(socketId);
@@ -227,8 +244,16 @@ export function useWebRTC(roomId?: string, username?: string) {
             const map = new Map(prev);
             map.delete(socketId);
             return map;
-        })
-    }
+        });
+
+        setUserNames(prev => {
+            const map = new Map(prev);
+            map.delete(socketId);
+            return map;
+        });
+
+        onToastRef.current?.(`${leavingName} left`, "leave");
+    };
 
     // When we join a room, the server tells us who is already there
     const handleExistingUsers = async (users: {socketId: string, username: string}[]) => {
@@ -244,6 +269,7 @@ export function useWebRTC(roomId?: string, username?: string) {
             socket.emit("offer", { target: socketId, sdp: offer });
         }
     }
+
 
     socket.on("offer", handleOffer);
     socket.on("answer", handleAnswer);
