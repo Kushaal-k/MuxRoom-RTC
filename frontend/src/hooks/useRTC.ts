@@ -25,8 +25,35 @@ export function useWebRTC(roomId?: string, username?: string, onToast?: OnToast)
   const screenStreamRef = useRef<MediaStream | null>(null);
   // Always keep a fresh ref to onToast so the stale [] closure can call the latest version
   const onToastRef = useRef<OnToast | undefined>(onToast);
+  const [iceServers, setIceServers] = useState<RTCIceServer[]>([
+    { urls: "stun:stun.l.google.com:19302" }
+  ]);
+  const iceServersRef = useRef<RTCIceServer[]>([
+    { urls: "stun:stun.l.google.com:19302" }
+  ]);
+
   useEffect(() => { onToastRef.current = onToast; }, [onToast]);
   useEffect(() => { userNamesRef.current = userNames; }, [userNames]);
+  useEffect(() => { iceServersRef.current = iceServers; }, [iceServers]);
+
+  const fetchIceServers = async () => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SOCKET_URL}/api/turn`);
+      if (!response.ok) throw new Error("Failed to fetch TURN servers");
+      const data = await response.json();
+      if (data.iceServers) {
+        setIceServers(data.iceServers);
+        iceServersRef.current = data.iceServers;
+      }
+    } catch (error) {
+      console.error("Error fetching TURN servers:", error);
+      // Fallback to Google STUN is already set in initial state
+    }
+  };
+
+  useEffect(() => {
+    fetchIceServers();
+  }, []);
 
   const joinRoom = async () => {
     await startLocalStream();
@@ -40,7 +67,7 @@ export function useWebRTC(roomId?: string, username?: string, onToast?: OnToast)
 
   const createPeerConnection = async (userId: string) => {
     const pc = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+      iceServers: iceServersRef.current,
     });
 
     peers.current.set(userId, pc);

@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useParams } from "react-router-dom";
+import { Camera, CameraOff, Mic, MicOff, Settings, ArrowRight } from "lucide-react";
+import { GlassContainer } from "./ui/GlassContainer";
+import { BrandButton } from "./ui/BrandButton";
 
 const PrejoinScreen = () => {
-  const { roomId } = useParams<{ roomId: string}>();
+  const { roomId } = useParams<{ roomId: string }>();
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [meetingId, setMeetingId] = useState<string>(roomId || "");
   const [audioLevel, setAudioLevel] = useState<number>(0);
@@ -40,7 +43,6 @@ const PrejoinScreen = () => {
           videoRef.current.srcObject = stream;
         }
 
-        // Audio Level monitoring setup
         const audioContext = new AudioContext();
         audioContextRef.current = audioContext;
         const analyzer = audioContext.createAnalyser();
@@ -73,12 +75,10 @@ const PrejoinScreen = () => {
 
     return () => {
       mounted = false;
-      // Cleanup on unmount
       streamRef?.getTracks().forEach((t) => t.stop());
       if (audioContextRef.current) {
         audioContextRef.current.close().catch(() => {});
       }
-      // Stream cleanup is handled primarily if the component unmounts. Let localStream state handle track stops later if needed.
     };
   }, []);
 
@@ -103,40 +103,37 @@ const PrejoinScreen = () => {
   };
 
   const handleJoinRoom = () => {
-    if(!meetingId) return;
+    if (!meetingId) return;
     navigate(`/${meetingId}`, {
       state: { username: username.trim() || "GUEST_USER" }
     });
   };
 
   return (
-    <div className="bg-[#f7f6f8] text-slate-900 min-h-screen flex flex-col font-['Space_Grotesk']">
+    <div className="bg-background text-primary min-h-screen flex flex-col font-body">
       {/* Header */}
-      <header className="flex items-center justify-between border-b-2 border-slate-900 px-10 py-4 bg-white z-10 relative">
-        <div className="flex items-center gap-4 text-slate-900">
-          <span className="material-symbols-outlined text-3xl">videocam</span>
-          <h2 className="font-['Barlow_Condensed'] text-3xl font-black uppercase tracking-wider">
-            MuxRoom
-          </h2>
-        </div>
-        <div className="flex items-center gap-6">
-          <button className="font-['Inter'] text-sm font-semibold uppercase tracking-widest hover:text-[#8c2fca] transition-colors">
-            Settings
+      <header className="fixed top-0 left-0 right-0 z-50 flex justify-center p-6">
+        <GlassContainer className="max-w-7xl w-full px-8 py-3 flex justify-between items-center rounded-pill">
+          <div className="flex items-center gap-4">
+             <img src="/muxroom_logo_monochrome_1776460530657-removebg-preview.png" alt="Logo" className="h-8 invert" />
+             <span className="font-display font-extrabold text-xl tracking-tighter uppercase">MUXROOM</span>
+          </div>
+          <button className="text-on-surface-variant hover:text-primary transition-colors">
+            <Settings size={20} />
           </button>
-        </div>
+        </GlassContainer>
       </header>
 
-      <main className="flex-1 grid grid-cols-1 md:grid-cols-2">
-        {/* Left Column: Media Preview */}
-        <div className="grain bg-brand-blue-cobalt p-6 md:p-8 lg:p-10 flex flex-col justify-center min-h-[60vh] relative overflow-hidden">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-6 pt-32 pb-12 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+        {/* Left: Video Preview */}
+        <div className="lg:col-span-7">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-            className="relative z-10 w-full max-w-4xl mx-auto flex flex-col gap-6"
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="relative"
           >
-            {/* Video Container */}
-            <div className="relative w-full aspect-video bg-black border-4 border-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center overflow-hidden">
+            <GlassContainer className="aspect-video rounded-3xl overflow-hidden relative group">
               <video
                 ref={videoRef}
                 autoPlay
@@ -145,162 +142,108 @@ const PrejoinScreen = () => {
                 className={`w-full h-full object-cover ${!isCamOn ? "hidden" : ""} scale-x-[-1]`}
               />
               {!isCamOn && (
-                <div className="absolute inset-0 flex items-center justify-center bg-zinc-900">
-                  <span className="material-symbols-outlined text-6xl text-white/50">
-                    videocam_off
-                  </span>
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-low">
+                   <div className="w-24 h-24 rounded-full border border-white/5 flex items-center justify-center mb-4">
+                      <CameraOff size={40} className="text-white/20" />
+                   </div>
+                   <span className="text-white/20 font-display uppercase tracking-widest text-xs">Visual feed suspended</span>
                 </div>
               )}
 
-              {/* Controls Overlay */}
-              <div className="absolute bottom-4 left-4 right-4 flex justify-between items-end gap-4">
-                <div className="flex gap-3">
-                  <button
-                    onClick={toggleCamera}
-                    className="flex flex-col items-center gap-1 group"
-                    aria-label="Toggle Camera"
-                  >
-                    <div
-                      className={`w-12 h-12 border-2 border-black flex items-center justify-center transition-colors ${
-                        isCamOn
-                          ? "bg-brand-purple-vivid text-brand-yellow-acid group-hover:bg-brand-yellow-acid group-hover:text-brand-purple-vivid"
-                          : "bg-red-500 text-white group-hover:bg-red-600"
-                      }`}
-                    >
-                      <span className="material-symbols-outlined">
-                        {isCamOn ? "videocam" : "videocam_off"}
-                      </span>
-                    </div>
-                    <span className="font-['Inter'] text-xs font-bold text-white uppercase bg-black px-1">
-                      Cam
-                    </span>
-                  </button>
-                  <button
-                    onClick={toggleMic}
-                    className="flex flex-col items-center gap-1 group"
-                    aria-label="Toggle Microphone"
-                  >
-                    <div
-                      className={`w-12 h-12 border-2 border-black flex items-center justify-center transition-colors ${
-                        isMicOn
-                          ? "bg-brand-purple-vivid text-brand-yellow-acid group-hover:bg-brand-yellow-acid group-hover:text-brand-purple-vivid"
-                          : "bg-red-500 text-white group-hover:bg-red-600"
-                      }`}
-                    >
-                      <span className="material-symbols-outlined">
-                        {isMicOn ? "mic" : "mic_off"}
-                      </span>
-                    </div>
-                    <span className="font-['Inter'] text-xs font-bold text-white uppercase bg-black px-1">
-                      Mic
-                    </span>
-                  </button>
-                </div>
-
-                {/* Audio Level Meter */}
-                <div className="flex flex-col gap-1 w-1/3 bg-black/50 p-2 border border-white/20">
-                  <span className="font-['Inter'] text-[10px] font-bold text-brand-yellow-acid uppercase tracking-widest">
-                    Audio Level
-                  </span>
-                  <div className="flex items-end gap-[2px] h-6 overflow-hidden">
-                    {/* Generate fake bars that scale dynamically with true audio level */}
-                    {Array.from({ length: 8 }).map((_, i) => {
-                      const normalizedLevel =
-                        audioLevel > 0 ? (audioLevel / 128) * 100 : 5;
-                      // Using Math.sin to have a pure function instead of Math.random
-                      const pseudoRandomOffset = isMicOn
-                        ? Math.sin(i * 1234.5) * 20 - 10
-                        : 0;
-                      const heightPercentage = isMicOn
-                        ? Math.min(
-                            100,
-                            Math.max(5, normalizedLevel + pseudoRandomOffset),
-                          )
-                        : 5;
-
-                      return (
-                        <div
-                          key={i}
-                          className={`w-full ${i < 5 ? "bg-brand-yellow-acid" : "bg-brand-yellow-acid/40"} transition-all duration-75`}
-                          style={{ height: `${heightPercentage}%` }}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
+              {/* Media Controls Overlay */}
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-4">
+                <GlassContainer 
+                  className={`w-14 h-14 rounded-full flex items-center justify-center cursor-pointer transition-all duration-300 ${isCamOn ? 'bg-white/10' : 'bg-red-500/20 border-red-500/50'}`}
+                  onClick={toggleCamera}
+                  hoverEffect
+                >
+                  {isCamOn ? <Camera size={20} /> : <CameraOff size={20} className="text-red-500" />}
+                </GlassContainer>
+                
+                <GlassContainer 
+                  className={`w-14 h-14 rounded-full flex items-center justify-center cursor-pointer transition-all duration-300 ${isMicOn ? 'bg-white/10' : 'bg-red-500/20 border-red-500/50'}`}
+                  onClick={toggleMic}
+                  hoverEffect
+                >
+                  {isMicOn ? <Mic size={20} /> : <MicOff size={20} className="text-red-500" />}
+                </GlassContainer>
               </div>
-            </div>
+
+              {/* Audio Meter Visualizer */}
+              <div className="absolute top-6 right-6 flex items-end gap-[2px] h-8 w-12">
+                 {Array.from({ length: 6 }).map((_, i) => {
+                    const normalizedLevel = audioLevel > 0 ? (audioLevel / 128) * 100 : 5;
+                    const pseudoRandomOffset = isMicOn ? Math.sin(i * 1234.5) * 20 - 10 : 0;
+                    const height = isMicOn ? Math.min(100, Math.max(10, normalizedLevel + pseudoRandomOffset)) : 10;
+                    return (
+                       <div 
+                        key={i} 
+                        className={`w-1 rounded-full transition-all duration-75 ${i > 4 ? 'bg-white/10' : 'bg-white/40'}`}
+                        style={{ height: `${height}%` }}
+                       />
+                    );
+                 })}
+              </div>
+            </GlassContainer>
           </motion.div>
         </div>
 
-        {/* Right Column: User Input */}
-        <div className="grain bg-brand-purple-light p-6 md:p-8 lg:p-10 flex flex-col justify-between border-l-4 border-slate-900 relative overflow-hidden">
-          <motion.div
+        {/* Right: Setup Info */}
+        <div className="lg:col-span-5 flex flex-col gap-10">
+           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.2, ease: "easeOut" }}
-            className="relative z-10 flex flex-col gap-6 mt-4"
-          >
-            <h1 className="font-['Barlow_Condensed'] text-6xl md:text-7xl lg:text-8xl font-black text-white leading-none tracking-tight drop-shadow-[3px_3px_0px_rgba(0,0,0,1)]">
-              GET
-              <br />
-              READY
-            </h1>
-            <div className="flex flex-col gap-3">
-              <label
-                htmlFor="name-input"
-                className="font-['Inter'] text-slate-900 font-bold uppercase tracking-widest text-lg"
-              >
-                Enter Your Name
-              </label>
-              <input
-                id="name-input"
-                className="w-full bg-white border-4 border-slate-900 p-4 font-['Inter'] text-lg font-bold text-slate-900 focus:outline-none focus:ring-0 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] uppercase placeholder-slate-400"
-                placeholder="GUEST_USER_01"
-                type="text"
-                autoComplete="off"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
+            transition={{ duration: 0.6, delay: 0.2 }}
+           >
+              <h1 className="font-display text-5xl md:text-6xl font-extrabold uppercase leading-[0.9] mb-4">
+                Verify <br /> <span className="text-glow">Presence.</span>
+              </h1>
+              <p className="text-on-surface-variant font-medium text-lg leading-relaxed">
+                Calibrate your sensory inputs before entering the digital monolith.
+              </p>
+           </motion.div>
 
-              <label
-                htmlFor="meeting-id"
-                className="font-['Inter'] text-slate-900 font-bold uppercase tracking-widest text-lg mt-2"
-              >
-                Meeting ID
-              </label>
-              <input
-                id="meeting-id"
-                className="w-full bg-white border-4 border-slate-900 p-4 font-['Inter'] text-lg font-bold text-slate-900 focus:outline-none focus:ring-0 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] uppercase placeholder-slate-400"
-                placeholder="ENTER MEETING ID"
-                type="text"
-                autoComplete="off"
-                value={meetingId}
-                onChange={(e) => setMeetingId(e.target.value)}
-              />
-            </div>
-          </motion.div>
+           <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="flex flex-col gap-8"
+           >
+              <div className="flex flex-col gap-3">
+                 <label className="text-white/20 text-[10px] uppercase tracking-[0.4em] font-bold">Identity Signature</label>
+                 <GlassContainer className="p-1 rounded-pill">
+                    <input 
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="ENTER IDENTIFIER..."
+                      className="w-full bg-transparent border-none focus:ring-0 px-6 py-3 font-display font-bold uppercase tracking-widest placeholder:text-white/20"
+                    />
+                 </GlassContainer>
+              </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4, ease: "easeOut" }}
-            className="relative z-10 mt-6"
-          >
-            <button
-              className="w-full bg-brand-yellow-acid border-4 border-slate-900 p-5 flex justify-between items-center group shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-1 hover:translate-x-1 outline-none focus:ring-4 focus:ring-purple-500 transition-all cursor-pointer"
-              onClick={handleJoinRoom}
-            >
-              <span className="font-['Barlow_Condensed'] text-4xl md:text-5xl font-black text-brand-purple-vivid uppercase tracking-wide">
-                Enter Meeting
-              </span>
-              <span className="material-symbols-outlined text-5xl text-brand-purple-vivid group-hover:translate-x-2 transition-transform">
-                arrow_forward
-              </span>
-            </button>
-          </motion.div>
+              <div className="flex flex-col gap-3">
+                 <label className="text-white/20 text-[10px] uppercase tracking-[0.4em] font-bold">Node Address</label>
+                 <GlassContainer className="p-1 rounded-pill">
+                    <input 
+                      type="text"
+                      value={meetingId}
+                      onChange={(e) => setMeetingId(e.target.value)}
+                      placeholder="ENTER MEETING ID..."
+                      className="w-full bg-transparent border-none focus:ring-0 px-6 py-3 font-display font-bold uppercase tracking-widest placeholder:text-white/20"
+                    />
+                 </GlassContainer>
+              </div>
+
+              <BrandButton onClick={handleJoinRoom} variant="solid" className="w-full py-5 text-xl mt-4">
+                 Manifest Presence <ArrowRight size={24} className="ml-2" />
+              </BrandButton>
+           </motion.div>
         </div>
       </main>
+
+      {/* Atmospheric Decoration */}
+      <div className="fixed bottom-0 left-0 w-full h-px bg-linear-to-r from-transparent via-white/10 to-transparent" />
     </div>
   );
 };
