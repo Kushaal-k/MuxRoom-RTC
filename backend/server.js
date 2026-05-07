@@ -1,15 +1,57 @@
 import express from "express";
 import {createServer} from "http";
 import {Server} from "socket.io";
+import cors from "cors";
+import dotenv from "dotenv";
+import fetch from "node-fetch";
+
+dotenv.config();
 
 const app = express();
 app.use(express.json());
+app.use(cors());
 
 const server = createServer(app);
 const io = new Server(server, {
     cors: {
         origin: "*",
         methods: ["GET", "POST"],
+    }
+});
+
+app.get("/api/turn", async (req, res) => {
+    try {
+        const tokenId = process.env.CF_TOKEN_ID;
+        const apiToken = process.env.CF_API_TOKEN;
+
+        if (!tokenId || !apiToken) {
+            console.error("Cloudflare credentials missing in .env");
+            return res.status(500).json({ error: "Cloudflare credentials not configured" });
+        }
+
+        const response = await fetch(
+            `https://rtc.live.cloudflare.com/v1/turn/keys/${tokenId}/credentials/generate-ice-servers`,
+            {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${apiToken}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ ttl: 86400 }),
+            }
+        );
+
+        if (!response.ok) {
+            const error = await response.text();
+            console.error("Cloudflare API error:", error);
+            return res.status(response.status).json({ error: "Failed to fetch TURN credentials" });
+        }
+
+        const data = await response.json();
+        res.json(data);
+    } catch (error) {
+        console.error("Internal Server Error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
     }
 });
 

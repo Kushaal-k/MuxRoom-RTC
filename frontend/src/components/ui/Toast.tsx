@@ -1,34 +1,31 @@
 import { AnimatePresence, motion } from "framer-motion";
 import type { Toast, ToastType } from "../../hooks/useToast";
+import { GlassContainer } from "./GlassContainer";
 
 /** Maps toast type to visual style tokens */
 const STYLE_MAP: Record<
   ToastType,
-  { bg: string; text: string; border: string; symbol: string }
+  { bg: string; text: string; icon: string }
 > = {
   join: {
-    bg: "bg-brand-yellow-acid",
-    text: "text-brand-text-dark",
-    border: "border-brand-text-dark",
-    symbol: "+",
+    bg: "bg-white",
+    text: "text-black",
+    icon: "○",
   },
   leave: {
-    bg: "bg-brand-purple-vivid",
-    text: "text-white",
-    border: "border-brand-text-dark",
-    symbol: "−",
+    bg: "bg-white/10",
+    text: "text-white/60",
+    icon: "×",
   },
   info: {
-    bg: "bg-white",
-    text: "text-brand-text-dark",
-    border: "border-brand-text-dark",
-    symbol: "i",
+    bg: "bg-white/5",
+    text: "text-white",
+    icon: "●",
   },
   error: {
-    bg: "bg-red-600",
-    text: "text-white",
-    border: "border-brand-text-dark",
-    symbol: "!",
+    bg: "bg-red-500/20",
+    text: "text-red-400",
+    icon: "!",
   },
 };
 
@@ -44,41 +41,43 @@ function ToastItem({ toast, onRemove }: ToastItemProps) {
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, x: 80, scale: 0.95 }}
-      animate={{ opacity: 1, x: 0, scale: 1 }}
-      exit={{ opacity: 0, x: 80, scale: 0.95 }}
-      transition={{ duration: 0.22, ease: "easeOut" }}
-      className={`
-        flex items-center gap-4 px-5 py-3
-        border-4 ${styles.border} ${styles.bg}
-        shadow-[6px_6px_0px_0px_rgba(0,0,0,1)]
-        cursor-pointer select-none
-        min-w-[260px] max-w-[420px]
-      `}
-      onClick={() => onRemove(toast.id)}
-      role="alert"
-      aria-live="polite"
+      initial={{ opacity: 0, y: 20, scale: 0.9 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+      className="pointer-events-auto"
     >
-      {/* Symbol badge */}
-      <span
+      <GlassContainer 
         className={`
-          font-['Barlow_Condensed'] font-black text-2xl leading-none
-          w-7 h-7 flex items-center justify-center shrink-0
-          border-2 ${styles.border} ${styles.text}
+          flex items-center gap-4 px-6 py-4 rounded-2xl
+          cursor-pointer select-none
+          min-w-[300px] max-w-[420px]
+          ${styles.bg} border-white/10
         `}
+        onClick={() => onRemove(toast.id)}
+        hoverEffect
       >
-        {styles.symbol}
-      </span>
+        {/* Icon */}
+        <span
+          className={`
+            font-display font-bold text-xl leading-none
+            w-8 h-8 flex items-center justify-center shrink-0
+            rounded-full border border-white/10 ${styles.text}
+          `}
+        >
+          {styles.icon}
+        </span>
 
-      {/* Message */}
-      <span
-        className={`
-          font-['Barlow_Condensed'] font-black text-lg uppercase tracking-wider
-          leading-tight ${styles.text}
-        `}
-      >
-        {toast.message}
-      </span>
+        {/* Message */}
+        <span
+          className={`
+            font-display font-bold text-sm uppercase tracking-widest
+            leading-tight ${styles.text}
+          `}
+        >
+          {toast.message}
+        </span>
+      </GlassContainer>
     </motion.div>
   );
 }
@@ -90,22 +89,16 @@ interface ToastContainerProps {
 
 /**
  * Renders the active toast stack in the bottom-right corner of the screen.
- * Mount this once at the top of your layout (e.g. inside `MeetingRoom`).
- *
- * @param toasts   - The live toast array from `useToast`.
- * @param onRemove - Callback to manually dismiss a toast by id.
  */
 export function ToastContainer({ toasts, onRemove }: ToastContainerProps) {
   return (
     <div
-      className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 items-end pointer-events-none"
+      className="fixed bottom-10 right-10 z-100 flex flex-col gap-4 items-end pointer-events-none"
       aria-label="Notifications"
     >
       <AnimatePresence mode="popLayout">
         {toasts.map((toast) => (
-          <div key={toast.id} className="pointer-events-auto">
-            <ToastItem toast={toast} onRemove={onRemove} />
-          </div>
+          <ToastItem key={toast.id} toast={toast} onRemove={onRemove} />
         ))}
       </AnimatePresence>
     </div>
