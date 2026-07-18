@@ -215,7 +215,8 @@ export function useWebRTC(roomId?: string, username?: string, onToast?: OnToast)
       localStreamRef.current = stream;
       setLocalStream(stream);
       if(videoRef.current) videoRef.current.srcObject = stream;
-    } catch (error) {
+    } catch (err) {
+      console.error(err);
       onToastRef.current?.("Camera / mic access denied", "error");
     }
   };
@@ -289,12 +290,14 @@ export function useWebRTC(roomId?: string, username?: string, onToast?: OnToast)
           users.forEach(({socketId, username}) => map.set(socketId, username));
           return map;
         })
-        for (const { socketId } of users) {
-            const pc = await createPeerConnection(socketId);
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            socket.emit("offer", { target: socketId, sdp: offer });
-        }
+        await Promise.all(
+            users.map(async ({ socketId }) => {
+                const pc = await createPeerConnection(socketId);
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                socket.emit("offer", { target: socketId, sdp: offer });
+            })
+        );
     }
 
 
