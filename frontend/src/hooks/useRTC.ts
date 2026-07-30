@@ -2,19 +2,18 @@ import { useEffect, useRef, useState } from "react";
 import { socket } from "../config/socket";
 import type { ToastType } from "./useToast";
 
-/**
- * @param roomId - The ID of the room to join
- * @param username - The username of the user
- * @param onToast - Callback function to display toast notifications
- */
-
 export type OnToast = (message: string, type: ToastType) => void;
 
+/**
+ * Owns the client-side WebRTC lifecycle: local media, peer connections, and
+ * Socket.IO signaling for a single room.
+ */
 export function useWebRTC(roomId?: string, username?: string, onToast?: OnToast) {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [isMicOn, setIsMicOn] = useState(true);
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  // Refs let socket callbacks read current media state without being recreated on every render.
   const isScreenSharingRef = useRef(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
@@ -23,7 +22,7 @@ export function useWebRTC(roomId?: string, username?: string, onToast?: OnToast)
   const peers = useRef<Map<string, RTCPeerConnection>>(new Map());
   const localStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
-  // Always keep a fresh ref to onToast so the stale [] closure can call the latest version
+  // The signaling effect runs once, so it reads the latest callback through this ref.
   const onToastRef = useRef<OnToast | undefined>(onToast);
   const [iceServers, setIceServers] = useState<RTCIceServer[]>([
     { urls: "stun:stun.l.google.com:19302" }
@@ -42,6 +41,7 @@ export function useWebRTC(roomId?: string, username?: string, onToast?: OnToast)
       if (!response.ok) throw new Error("Failed to fetch TURN servers");
       const data = await response.json();
       if (data.iceServers) {
+        // Prefer TURN/STUN credentials from the backend; they may expire and must not be hard-coded.
         setIceServers(data.iceServers);
         iceServersRef.current = data.iceServers;
       }
@@ -56,6 +56,7 @@ export function useWebRTC(roomId?: string, username?: string, onToast?: OnToast)
   }, []);
 
   const joinRoom = async () => {
+    // Acquire media first so every peer connection created after joining includes local tracks.
     await startLocalStream();
     if (!localStreamRef.current) {
       console.warn("Local stream not ready yet");
@@ -73,6 +74,7 @@ export function useWebRTC(roomId?: string, username?: string, onToast?: OnToast)
     peers.current.set(userId, pc);
 
     pc.onicecandidate = (event) => {
+      // ICE candidates are exchanged incrementally so peers can discover a usable network path.
       if (event.candidate && roomId) {
         socket.emit("ice-candidate", {
           target: userId,
@@ -82,6 +84,7 @@ export function useWebRTC(roomId?: string, username?: string, onToast?: OnToast)
     };
 
     pc.ontrack = (event) => {
+      // Each remote peer publishes its stream independently; keep it keyed by socket ID.
       setRemoteStreams((prev) => {
         const newStreams = new Map(prev);
         newStreams.set(userId, event.streams[0]);
@@ -133,7 +136,7 @@ export function useWebRTC(roomId?: string, username?: string, onToast?: OnToast)
         screenStreamRef.current = stream;
         const screenTrack = stream.getVideoTracks()[0];
 
-        // Replace track for all peers
+        // Preserve each peer connection while swapping only its outgoing video track.
         peers.current.forEach((pc) => {
           const senders = pc.getSenders();
           const videoSender = senders.find((s) => s.track?.kind === "video");
@@ -146,7 +149,7 @@ export function useWebRTC(roomId?: string, username?: string, onToast?: OnToast)
           videoRef.current.srcObject = stream;
         }
 
-        // Auto-stop when the OS-level share picker is dismissed
+        // The browser can end sharing outside this UI, such as from its built-in share control.
         screenTrack.onended = () => {
           stopScreenShare();
           onToastRef.current?.("Screen share ended", "info");
@@ -173,6 +176,7 @@ export function useWebRTC(roomId?: string, username?: string, onToast?: OnToast)
       screenStreamRef.current = null;
     }
 
+    // Restore the camera track to the same senders used for screen sharing.
     const cameraTrack = localStreamRef.current?.getVideoTracks()[0];
     if (cameraTrack) {
       peers.current.forEach((pc) => {
@@ -192,6 +196,7 @@ export function useWebRTC(roomId?: string, username?: string, onToast?: OnToast)
   };
 
   const endCall = async () => {
+    // Stop hardware capture as well as signaling to avoid retaining camera or microphone access.
     peers.current.forEach(pc => pc.close());   
     peers.current.clear();
     localStream?.getTracks().forEach(t => t.stop());
@@ -211,6 +216,7 @@ export function useWebRTC(roomId?: string, username?: string, onToast?: OnToast)
 
   const startLocalStream = async () => {
     try {
+      //Add  local stream - audio and video
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
       localStreamRef.current = stream;
       setLocalStream(stream);
@@ -283,7 +289,7 @@ export function useWebRTC(roomId?: string, username?: string, onToast?: OnToast)
         onToastRef.current?.(`${leavingName} left`, "leave");
     };
 
-    // When we join a room, the server tells us who is already there
+    // Existing participants create offers; later joiners wait for those offers to avoid duplicate negotiations.
     const handleExistingUsers = async (users: {socketId: string, username: string}[]) => {
         setUserNames(prev => {
           const map = new Map(prev);

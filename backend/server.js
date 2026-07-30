@@ -19,6 +19,7 @@ const io = new Server(server, {
     }
 });
 
+//Turn server from cloudfare
 app.get("/api/turn", async (req, res) => {
     try {
         const tokenId = process.env.CF_TOKEN_ID;
@@ -65,11 +66,13 @@ const roomMap = new Map();
 io.on("connection", (socket) => {
     console.log("User connected: " + socket.id);
 
+    //Socket connection for joining room
     socket.on("join-room", ({roomId, username}) => {
         if(!roomId || !username || roomId.length > 100) {
             return;
         }
 
+        //Make sure that room has at max 6 peers - mesh architecture
         if(roomMap.has(roomId) && roomMap.get(roomId).size >= 6){
             socket.emit("room-full");
             return;
@@ -95,16 +98,19 @@ io.on("connection", (socket) => {
         socket.to(roomId).emit("user-joined", { socketId: socket.id, username });
     });
 
+    //Sending offer to other peers with sdp 
     socket.on("offer", ({target, sdp}) => {
         console.log("Offer received from " + socket.id + " to room " + target);
         io.to(target).emit("offer", {sdp, target: socket.id});
     });
 
+    //Answer for offer with sdp information
     socket.on("answer", ({target, sdp}) => {
         console.log("Answer received from " + socket.id + " to room " + target);
         io.to(target).emit("answer", {sdp, target: socket.id});
     });
 
+    //Ice Candidate information for handshake
     socket.on("ice-candidate", ({target, candidate}) => {
         console.log("ICE candidate received from " + socket.id + " to room " + target);
         io.to(target).emit("ice-candidate", {candidate, target: socket.id});
